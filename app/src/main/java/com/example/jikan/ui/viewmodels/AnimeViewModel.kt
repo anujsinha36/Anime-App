@@ -19,18 +19,17 @@ class AnimeViewModel(
 
     init {
         getAnimeList()
-
     }
 
     //function to get top anime list from repository
     fun getAnimeList() {
         viewModelScope.launch(Dispatchers.IO) {
+            isLoading.postValue(true)
             val response = animeRepository.getAnimeList()
             if (response.isSuccessful) {
-                isLoading.postValue(true)
                 animeLiveData.postValue(response.body())
+                isLoading.postValue(false)
             }
-            isLoading.postValue(false)
         }
     }
 
