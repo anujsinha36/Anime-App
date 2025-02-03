@@ -11,6 +11,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
+import androidx.paging.LoadState
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.jikan.R
 import com.example.jikan.adapters.AnimeListAdapter
@@ -19,9 +21,11 @@ import com.example.jikan.data.repository.AnimeRepository
 import com.example.jikan.databinding.ActivityMainBinding
 import com.example.jikan.ui.viewmodels.AnimeViewModel
 import com.example.jikan.ui.viewmodels.AnimeViewModelFactory
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 class MainScreen : AppCompatActivity() {
-    private lateinit var  viewModel: AnimeViewModel
+    private lateinit var viewModel: AnimeViewModel
     private lateinit var repository: AnimeRepository
     private lateinit var viewModelFactory: AnimeViewModelFactory
     private lateinit var binding: ActivityMainBinding
@@ -38,20 +42,23 @@ class MainScreen : AppCompatActivity() {
         viewModelFactory = AnimeViewModelFactory(repository)
         viewModel = ViewModelProvider(this, viewModelFactory)[AnimeViewModel::class.java]
 
+        animeListAdapter = AnimeListAdapter()
+        binding.rvAnimeList.layoutManager = LinearLayoutManager(this)
+        binding.rvAnimeList.adapter = animeListAdapter
 
-
-        viewModel.animeLiveData.observe(this) {
-            animeListAdapter = AnimeListAdapter(it.data)
-            binding.rvAnimeList.layoutManager = LinearLayoutManager(this)
-            binding.rvAnimeList.adapter = animeListAdapter
+        //Observe data from view model
+        viewModel.animePagingLiveData.observe(this) {
+            animeListAdapter.submitData(lifecycle, it)
         }
 
-        viewModel.isLoading.observe(this){
-            if (it){
-                binding.progressBar.visibility = View.VISIBLE
-            }
-            else{
-                binding.progressBar.visibility = View.GONE
+        // Handle Load State (Show ProgressBar)
+        lifecycleScope.launch {
+            animeListAdapter.loadStateFlow.collectLatest { loadStates ->
+                when (loadStates.refresh) {
+                    is LoadState.Loading -> binding.progressBar.visibility = View.VISIBLE
+                    is LoadState.NotLoading -> binding.progressBar.visibility = View.GONE
+                    is LoadState.Error -> binding.progressBar.visibility = View.GONE
+                }
             }
         }
 
